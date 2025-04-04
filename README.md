@@ -1,5 +1,5 @@
 # 📬 Discord XrsZav DM Bot
-This is a Discord bot built using discord.py that allows server administrators to send direct messages (DMs) to individual users or all server members (excluding bots). It also supports retrying failed DMs and provides logging and status tracking.
+This is a Discord bot built using `discord.py` that allows server administrators to send direct messages (DMs) to individual users or all server members (excluding bots). It also supports retrying failed DMs and provides logging and status tracking. 
 
 ## ⚙️ Features
 `!dm @user [message]`
