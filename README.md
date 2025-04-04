@@ -1,4 +1,4 @@
-# 📬 Discord XrsZav DM Bot
+# 📬 Discord XrsZav MassDm / DM Bot 
 This is a Discord bot built using `discord.py` that allows server administrators to send direct messages (DMs) to individual users or all server members (excluding bots). It also supports retrying failed DMs and provides logging and status tracking. 
 
 ## ⚙️ Features
@@ -65,3 +65,6 @@ Need help or have suggestions? You can reach out through these methods:
 
 ## 📄 License
 This project is licensed under the **[MIT License](https://choosealicense.com/licenses/mit/)**. This project is provided as-is. You are responsible for how you use it.
+
+## 🔑 Keywords
+- Discord Bot, Mass DM, Direct Messages, Bulk Messaging, Bot Development, Python, Discord.py, Admin Tools
