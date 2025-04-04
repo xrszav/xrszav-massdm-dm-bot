@@ -60,7 +60,7 @@ python bot.py
 Need help or have suggestions? You can reach out through these methods:
 
 - **Discord**: You can find me on Discord: `xrszav`
-- **Telegram**: You can also contact me on Telegram, `[@xrszav](https://t.me/@xrszav)`.
+- **Telegram**: You can also contact me on Telegram, `@xrszav` [t.me/@xrszav](https://t.me/@xrszav).
 - **GitHub**: If you have **suggestions or improvements**, feel free to open an issue or submit a pull request.
 
 ## 📄 License
