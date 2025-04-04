@@ -56,7 +56,7 @@ python bot.py
 
 **Cooldowns are in place** (5 min every 20 users), but *Discord* can **still rate-limit or flag spammy behavior**.
 
-# 🆘 Support & Contributions
+## 🆘 Support & Contributions
 Need help or have suggestions? You can reach out through these methods:
 
 - **Discord**: You can find me on Discord: `xrszav`
