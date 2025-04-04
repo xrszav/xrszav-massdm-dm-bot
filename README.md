@@ -20,7 +20,6 @@ ______________________________________________________________
 |--------------|---------------------------------------------|
 | `!dmall`     | `!massdm`, `!dmallusers`                    |
 | `!dmretry`   | `!dmallcontinue`, `!retrydm`, `!dmfailures` |
-|______________|_____________________________________________|
 
 ## 📁 Log Files
 When running mass DM campaigns, the bot will generate two log files:
