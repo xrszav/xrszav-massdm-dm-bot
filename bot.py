@@ -3,7 +3,7 @@ from discord.ext import commands
 import asyncio
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 with open("config.json", "r", encoding="utf-8") as f:
@@ -13,11 +13,8 @@ TOKEN = config["token"]
 PREFIX = config["prefix"]
 DEFAULT_MESSAGE = config["default_message"]
 
-intents = discord.Intents.default()
-intents.members = True
-intents.message_content = True
-
-bot = commands.Bot(command_prefix=PREFIX, intents=intents)
+intents = discord.Intents.all()
+bot = commands.Bot(command_prefix=PREFIX, intents=intents, help_command=None)
 
 required_keys = ["token", "prefix"]
 for key in required_keys:
@@ -45,7 +42,88 @@ async def on_command_error(ctx, error):
         await ctx.send("❗ An unexpected error occurred. Check console for more info.")
         raise error 
     
-@bot.command(name='dm')
+@bot.command(name='help', aliases=['commands'], description="Show all available commands or details about a specific command")
+async def custom_help(ctx, *, command_name: str = None):
+    """Show all available commands or details about a specific command"""
+    if command_name:
+        # Show help for a specific command
+        command = bot.get_command(command_name.lower())
+        if not command:
+            return await ctx.send(f"❌ Command `{command_name}` not found. Use `{PREFIX}help` to see all commands.")
+        
+        embed = discord.Embed(
+            title=f"ℹ️ {command.name.capitalize()} Command Help",
+            color=discord.Color.blue()
+        )
+        
+        embed.add_field(
+            name="Description",
+            value=command.help or "No description available",
+            inline=False
+        )
+        
+        if command.aliases:
+            embed.add_field(
+                name="Aliases",
+                value=", ".join(f"`{alias}`" for alias in command.aliases),
+                inline=False
+            )
+        
+        embed.add_field(
+            name="Usage",
+            value=f"`{PREFIX}{command.name} {command.signature}`" if command.signature else f"`{PREFIX}{command.name}`",
+            inline=False
+        )
+        
+        return await ctx.send(embed=embed)
+    
+    # Show general help menu
+    embed = discord.Embed(
+        title="📚 DM Bot Help Menu",
+        description=f"Use `{PREFIX}help <command>` for more info on a specific command",
+        color=discord.Color.blue()
+    )
+    
+    # DM Commands
+    dm_commands = [
+        ("dm", "Send a DM to a specific user"),
+        ("dmall", "Mass DM all server members"),
+        ("dmroleall", "DM all members with a specific role"),
+        ("dmretry", "Retry failed DMs from a previous campaign")
+    ]
+    embed.add_field(
+        name="📨 DM Commands",
+        value="\n".join(f"• `{cmd[0]}` - {cmd[1]}" for cmd in dm_commands),
+        inline=False
+    )
+    
+    # Log Management
+    log_commands = [
+        ("getlog", "Download DM log files"),
+        ("dmstatus", "Show status of last DM campaign"),
+        ("dmstats", "Show DM statistics"),
+        ("clearlogs", "Delete old log files")
+    ]
+    embed.add_field(
+        name="📂 Log Management",
+        value="\n".join(f"• `{cmd[0]}` - {cmd[1]}" for cmd in log_commands),
+        inline=False
+    )
+    
+    # Additional Info
+    embed.add_field(
+        name="ℹ️ Additional Information",
+        value=(
+            f"• Prefix: `{PREFIX}`\n"
+            "• All commands require administrator permissions\n"
+            "• The bot automatically creates logs for all DM campaigns"
+        ),
+        inline=False
+    )
+    
+    await ctx.send(embed=embed)
+
+@bot.command(name='dm', description="Send a DM to a specific user")
 @commands.has_permissions(administrator=True)
 async def dm(ctx, member: discord.Member, *, custom_message=None):
     message = custom_message or DEFAULT_MESSAGE
@@ -63,7 +141,7 @@ async def dm(ctx, member: discord.Member, *, custom_message=None):
     except Exception as e:
         await ctx.send(f"❌ Failed to DM {member.name}: {e}")
 
-@bot.command(name='dmall', aliases=['massdm', 'dmallusers'])
+@bot.command(name='dmall', aliases=['massdm', 'dmallusers'], description="Mass DM all server members")
 @commands.has_permissions(administrator=True)
 async def dmall(ctx, *, custom_message=None):
     members = [m for m in ctx.guild.members if not m.bot]
@@ -145,7 +223,7 @@ async def dmall_error(ctx, error):
     else:
         await ctx.send(f"❌ Error: {error}")
 
-@bot.command(name='dmstatus')
+@bot.command(name='dmstatus', description="Show status of last DM campaign")
 @commands.has_permissions(administrator=True)
 async def dmstatus(ctx):
     success_files = [f for f in os.listdir() if f.startswith("dm_success_")]
@@ -195,7 +273,7 @@ async def dmstatus(ctx):
 
     await ctx.send(embed=status_embed)
 
-@bot.command(name='dmretry', aliases=['dmallcontinue', 'retrydm', 'dmfailures'])
+@bot.command(name='dmretry', aliases=['dmallcontinue', 'retrydm', 'dmfailures'],description="Retry DMs for users who failed in the last campaign")
 @commands.has_permissions(administrator=True)
 async def dmallcontinue(ctx, *, filepath=None):
     if not filepath:
@@ -268,5 +346,219 @@ async def dmallcontinue(ctx, *, filepath=None):
     final_embed.add_field(name="❌ Retried & Failed", value=str(failed), inline=True)
     final_embed.add_field(name="📄 Logs", value=f"Success: `{retry_log_success}`\nFailed: `{retry_log_failed}`", inline=False)
     await ctx.send(embed=final_embed)
+
+@bot.command(name='getlog', aliases=['downloadlog', 'log'],description="Download specific log file or list all available logs")
+@commands.has_permissions(administrator=True)
+async def get_log(ctx, filename: str = None):
+    """
+    Download specific log file or list all available logs
+    Usage: !getlog [filename] or just !getlog to list all logs
+    """
+    # Get all log files
+    all_logs = [f for f in os.listdir() if f.startswith(("dm_success_", "dm_failed_", "dm_retry_"))]
+    all_logs.sort(reverse=True)  # Sort by newest first
+    
+    if not all_logs:
+        await ctx.send("❌ No log files found.")
+        return
+    
+    # If no filename specified, show list of all logs
+    if filename is None:
+        embed = discord.Embed(
+            title="📜 Available Log Files",
+            description="Use `!getlog filename` to download a specific file",
+            color=discord.Color.blue()
+        )
+        
+        # Split logs into success and failed categories
+        success_logs = [f for f in all_logs if "success" in f]
+        failed_logs = [f for f in all_logs if "failed" in f]
+        
+        if success_logs:
+            embed.add_field(
+                name="✅ Success Logs",
+                value="\n".join(f"`{f}`" for f in success_logs),
+                inline=False
+            )
+        
+        if failed_logs:
+            embed.add_field(
+                name="❌ Failed Logs",
+                value="\n".join(f"`{f}`" for f in failed_logs),
+                inline=False
+            )
+        
+        await ctx.send(embed=embed)
+        return
+    
+    # Check if requested file exists
+    if filename not in all_logs:
+        await ctx.send(f"❌ File `{filename}` not found. Use `!getlog` to see available files.")
+        return
+    
+    # Send the requested file
+    try:
+        await ctx.send(f"📄 Here's your log file: `{filename}`", file=discord.File(filename))
+    except Exception as e:
+        await ctx.send(f"❌ Error sending file: {e}")
+
+@get_log.error
+async def get_log_error(ctx, error):
+    if isinstance(error, commands.MissingPermissions):
+        await ctx.send("❌ You need administrator permissions to use this command.")
+    else:
+        await ctx.send(f"❌ Error: {error}")
+
+@bot.command(name='clearlogs', aliases=['purgelogs'], description="Delete log files older than X days (default: 30)")
+@commands.has_permissions(administrator=True)
+async def clear_logs(ctx, days: int = 30):
+    """Delete log files older than X days (default: 30)"""
+    cutoff = datetime.now().timestamp() - (days * 86400)
+    deleted = 0
+    
+    for filename in os.listdir():
+        if filename.startswith(("dm_success_", "dm_failed_", "dm_retry_")):
+            file_time = os.path.getmtime(filename)
+            if file_time < cutoff:
+                try:
+                    os.remove(filename)
+                    deleted += 1
+                except Exception as e:
+                    print(f"Error deleting {filename}: {e}")
+    
+    await ctx.send(f"♻️ Deleted {deleted} log files older than {days} days.")
+
+@bot.command(name='dmstats')
+@commands.has_permissions(administrator=True)
+async def dm_stats(ctx, days: int = 7):
+    """Show DM statistics for the last X days"""
+    cutoff = datetime.now() - timedelta(days=days)
+    stats = {
+        'total_sent': 0,
+        'total_failed': 0,
+        'unique_users': set(),
+        'last_campaign': None
+    }
+    
+    for filename in os.listdir():
+        if filename.startswith("dm_success_") and datetime.fromtimestamp(os.path.getmtime(filename)) > cutoff:
+            try:
+                with open(filename, 'r', encoding='utf-8') as f:  # Added encoding here
+                    stats['total_sent'] += len(f.readlines()) - 1
+                    f.seek(0)
+                    for line in f.readlines()[1:]:
+                        if '|' in line:
+                            stats['unique_users'].add(line.split('|')[1].strip())
+            except UnicodeDecodeError:
+                await ctx.send(f"⚠️ Warning: Could not read {filename} as UTF-8. Skipping...")
+                continue
+        
+        if filename.startswith("dm_failed_"):
+            try:
+                with open(filename, 'r', encoding='utf-8') as f:  # Added encoding here
+                    stats['total_failed'] += len(f.readlines()) - 1
+            except UnicodeDecodeError:
+                await ctx.send(f"⚠️ Warning: Could not read {filename} as UTF-8. Skipping...")
+                continue
+    
+    embed = discord.Embed(
+        title=f"📊 DM Statistics (Last {days} Days)",
+        color=discord.Color.gold()
+    )
+    embed.add_field(name="✅ Successful DMs", value=str(stats['total_sent']))
+    embed.add_field(name="❌ Failed DMs", value=str(stats['total_failed']))
+    embed.add_field(name="👥 Unique Users Reached", value=str(len(stats['unique_users'])))
+    embed.add_field(name="📈 Success Rate", 
+                   value=f"{stats['total_sent']/(stats['total_sent']+stats['total_failed'])*100:.1f}%" if (stats['total_sent']+stats['total_failed']) > 0 else "N/A")
+    
+    await ctx.send(embed=embed)
+
+    
+@bot.command(name='dmroleall', aliases=['roledm', 'dmrole'], description="DM all users with a specific role")
+@commands.has_permissions(administrator=True)
+async def dm_role_all(ctx, role: discord.Role, *, custom_message=None):
+    """DM all users with a specific role"""
+    members = [m for m in role.members if not m.bot]
+    total = len(members)
+    if total == 0:
+        await ctx.send(f"❌ No users found with the {role.name} role.")
+        return
+
+    message = custom_message or DEFAULT_MESSAGE
+    if not message.strip():
+        await ctx.send("❌ No default message set | ❌ No message was sent. Please provide a message.")
+        return
+
+    sent = 0
+    failed = 0
+    report_every = max(1, total // 10)  # More frequent updates since groups are smaller
+    pause_every = 20
+    cooldown_duration = 300
+
+    timestamp = datetime.now().strftime("%d%m%Y_%H%M%S")
+    log_file_success = f"dm_success_{role.name}_{timestamp}.txt"
+    log_file_failed = f"dm_failed_{role.name}_{timestamp}.txt"
+
+    with open(log_file_success, "w", encoding="utf-8") as f:
+        f.write(f"✅ DMed Users with {role.name} role:\n")
+    with open(log_file_failed, "w", encoding="utf-8") as f:
+        f.write(f"❌ Failed DMs for {role.name} role:\n")
+
+    await ctx.send(
+        f"📤 Starting to DM {total} users with {role.name} role...\n"
+        f"⏱ Progress every {report_every} users, cooldown every {pause_every} users.\n"
+        f"📝 Success log: `{log_file_success}`\n"
+        f"🛑 Failed log: `{log_file_failed}`"
+    )
+
+    for idx, member in enumerate(members, start=1):
+        try:
+            await member.send(message)
+            sent += 1
+            with open(log_file_success, "a", encoding="utf-8") as f:
+                f.write(f"{member.name}#{member.discriminator} | {member.id}\n")
+        except Exception as e:
+            failed += 1
+            print(f"❌ Failed to DM {member.name}: {e}")
+            with open(log_file_failed, "a", encoding="utf-8") as f:
+                f.write(f"{member.name}#{member.discriminator} | {member.id} | Error: {e}\n")
+
+        if idx % report_every == 0:
+            embed = discord.Embed(
+                title=f"📬 DM Progress Update ({role.name})",
+                description=f"Progress: **{idx}/{total}** users",
+                color=role.color if role.color != discord.Color.default() else discord.Color.blurple()
+            )
+            embed.add_field(name="✅ Sent", value=str(sent))
+            embed.add_field(name="❌ Failed", value=str(failed))
+            await ctx.send(embed=embed)
+
+        if idx % pause_every == 0:
+            await ctx.send(f"🕒 Cooling down for 5 minutes after {idx} users...")
+            await asyncio.sleep(cooldown_duration)
+
+        await asyncio.sleep(1)
+
+    final_embed = discord.Embed(
+        title=f"✅ DM Campaign Completed ({role.name})",
+        description=f"All **{total}** users with {role.name} role processed.",
+        color=role.color if role.color != discord.Color.default() else discord.Color.green()
+    )
+    final_embed.add_field(name="✅ Total Sent", value=str(sent), inline=True)
+    final_embed.add_field(name="❌ Total Failed", value=str(failed), inline=True)
+    final_embed.add_field(name="📄 Logs", 
+                         value=f"✅ Success: `{log_file_success}`\n ❌ Failed: `{log_file_failed}`", 
+                         inline=False)
+    await ctx.send(embed=final_embed)
+
+@dm_role_all.error
+async def dm_role_all_error(ctx, error):
+    if isinstance(error, commands.MissingPermissions):
+        await ctx.send("❌ You need administrator permissions to use this command.")
+    elif isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send("❌ Please mention a role. Example: `!dmroleall @RoleName Your message`")
+    else:
+        await ctx.send(f"❌ Error: {error}")  
+
 
 bot.run(TOKEN)
