@@ -87,8 +87,11 @@ async def custom_help(ctx, *, command_name: str = None):
     # DM Commands
     dm_commands = [
         ("dm", "Send a DM to a specific user"),
+        ("dmpreview", ":new: Preview a DM by sending it to yourself"),
         ("dmall", "Mass DM all server members"),
+        ("dmallsafe", ":new: Slow, safer mass DM all server members"),
         ("dmroleall", "DM all members with a specific role"),
+        ("dmroleallsafe", ":new: Slow, safer DM all members with a role"),
         ("dmretry", "Retry failed DMs from a previous campaign")
     ]
     embed.add_field(
@@ -120,7 +123,8 @@ async def custom_help(ctx, *, command_name: str = None):
         ),
         inline=False
     )
-    
+
+    embed.set_footer(text="xrszav's DM Bot | https://oblivity.xyz | https://xrszav.xyz")
     await ctx.send(embed=embed)
 
 @bot.command(name='dm', description="Send a DM to a specific user")
@@ -140,6 +144,20 @@ async def dm(ctx, member: discord.Member, *, custom_message=None):
         await ctx.send(f"✅ DM sent to {member.name}")
     except Exception as e:
         await ctx.send(f"❌ Failed to DM {member.name}: {e}")
+
+@bot.command(name='dmpreview', aliases=['previewdm'], description="Preview a DM by sending it to yourself")
+@commands.has_permissions(administrator=True)
+async def dmpreview(ctx, *, custom_message=None):
+    message = custom_message or DEFAULT_MESSAGE
+    if not message.strip():
+        await ctx.send("❌ No default message set | ❌ No message was sent. Please provide a message.")
+        return
+
+    try:
+        await ctx.author.send(message)
+        await ctx.send(f"✅ Preview DM sent to {ctx.author.name}.")
+    except Exception as e:
+        await ctx.send(f"❌ Failed to send preview DM: {e}")
 
 @bot.command(name='dmall', aliases=['massdm', 'dmallusers'], description="Mass DM all server members")
 @commands.has_permissions(administrator=True)
@@ -208,6 +226,91 @@ async def dmall(ctx, *, custom_message=None):
 
     final_embed = discord.Embed(
         title="✅ DM Campaign Completed",
+        description=f"All **{total}** users processed.",
+        color=discord.Color.green()
+    )
+    final_embed.add_field(name="✅ Total Sent", value=str(sent), inline=True)
+    final_embed.add_field(name="❌ Total Failed", value=str(failed), inline=True)
+    final_embed.add_field(name="📄 Logs", value=f"Success: `{log_file_success}`\nFailed: `{log_file_failed}`", inline=False)
+    await ctx.send(embed=final_embed)
+
+@bot.command(name='dmallsafe', aliases=['massdmsafe', 'slowdmall'], description="Slow, safer mass DM all server members")
+@commands.has_permissions(administrator=True)
+async def dmall_safe(ctx, *, custom_message=None):
+    members = [m for m in ctx.guild.members if not m.bot]
+    total = len(members)
+    if total == 0:
+        await ctx.send("❌ No valid users to DM.")
+        return
+
+    message = custom_message or DEFAULT_MESSAGE
+    if not message.strip():
+        await ctx.send("❌ No default message set | ❌ No message was sent. Please provide a message.")
+        return
+
+    sent = 0
+    failed = 0
+    report_every = max(1, total // 100)
+    short_delay = 4
+    medium_pause_every = 15
+    medium_pause = 90
+    long_pause_every = 40
+    long_pause = 240
+    extra_pause_every = 100
+    extra_pause = 480
+
+    timestamp = datetime.now().strftime("%d%m%Y_%H%M%S")
+    log_file_success = f"dm_success_slow_{timestamp}.txt"
+    log_file_failed = f"dm_failed_slow_{timestamp}.txt"
+
+    with open(log_file_success, "w", encoding="utf-8") as f:
+        f.write("✅ Slowly DMed Users:\n")
+    with open(log_file_failed, "w", encoding="utf-8") as f:
+        f.write("❌ Slowly Failed DMs:\n")
+
+    await ctx.send(
+        f"🐢 Starting safe slow DM of {total} users...\n"
+        f"⏱ Progress every {report_every} users, longer cooldowns to reduce rate limit risk.\n"
+        f"📝 Success log: `{log_file_success}`\n"
+        f"🛑 Failed log: `{log_file_failed}`"
+    )
+
+    for idx, member in enumerate(members, start=1):
+        try:
+            await member.send(message)
+            sent += 1
+            with open(log_file_success, "a", encoding="utf-8") as f:
+                f.write(f"{member.name}#{member.discriminator} | {member.id}\n")
+        except Exception as e:
+            failed += 1
+            print(f"❌ Failed to DM {member.name}: {e}")
+            with open(log_file_failed, "a", encoding="utf-8") as f:
+                f.write(f"{member.name}#{member.discriminator} | {member.id} | Error: {e}\n")
+
+        if idx % report_every == 0:
+            embed = discord.Embed(
+                title="📬 Slow DM Progress Update",
+                description=f"Progress: **{idx}/{total}** users",
+                color=discord.Color.blurple()
+            )
+            embed.add_field(name="✅ Sent", value=str(sent))
+            embed.add_field(name="❌ Failed", value=str(failed))
+            await ctx.send(embed=embed)
+
+        if idx % extra_pause_every == 0:
+            await ctx.send(f"🕒 Extra cooldown: waiting {extra_pause} seconds after {idx} users...")
+            await asyncio.sleep(extra_pause)
+        elif idx % long_pause_every == 0:
+            await ctx.send(f"🕒 Long cooldown: waiting {long_pause} seconds after {idx} users...")
+            await asyncio.sleep(long_pause)
+        elif idx % medium_pause_every == 0:
+            await ctx.send(f"🕒 Medium cooldown: waiting {medium_pause} seconds after {idx} users...")
+            await asyncio.sleep(medium_pause)
+
+        await asyncio.sleep(short_delay)
+
+    final_embed = discord.Embed(
+        title="✅ Safe Slow DM Campaign Completed",
         description=f"All **{total}** users processed.",
         color=discord.Color.green()
     )
@@ -548,6 +651,93 @@ async def dm_role_all(ctx, role: discord.Role, *, custom_message=None):
     final_embed.add_field(name="❌ Total Failed", value=str(failed), inline=True)
     final_embed.add_field(name="📄 Logs", 
                          value=f"✅ Success: `{log_file_success}`\n ❌ Failed: `{log_file_failed}`", 
+                         inline=False)
+    await ctx.send(embed=final_embed)
+
+@bot.command(name='dmroleallsafe', aliases=['roledmsecure', 'slowdmrole'], description="Slow, safer DM all users with a specific role")
+@commands.has_permissions(administrator=True)
+async def dm_role_all_safe(ctx, role: discord.Role, *, custom_message=None):
+    members = [m for m in role.members if not m.bot]
+    total = len(members)
+    if total == 0:
+        await ctx.send(f"❌ No users found with the {role.name} role.")
+        return
+
+    message = custom_message or DEFAULT_MESSAGE
+    if not message.strip():
+        await ctx.send("❌ No default message set | ❌ No message was sent. Please provide a message.")
+        return
+
+    sent = 0
+    failed = 0
+    report_every = max(1, total // 10)
+    short_delay = 4
+    medium_pause_every = 10
+    medium_pause = 90
+    long_pause_every = 25
+    long_pause = 240
+    extra_pause_every = 60
+    extra_pause = 480
+
+    timestamp = datetime.now().strftime("%d%m%Y_%H%M%S")
+    log_file_success = f"dm_success_{role.name}_slow_{timestamp}.txt"
+    log_file_failed = f"dm_failed_{role.name}_slow_{timestamp}.txt"
+
+    with open(log_file_success, "w", encoding="utf-8") as f:
+        f.write(f"✅ Slowly DMed Users with {role.name} role:\n")
+    with open(log_file_failed, "w", encoding="utf-8") as f:
+        f.write(f"❌ Slowly Failed DMs for {role.name} role:\n")
+
+    await ctx.send(
+        f"🐢 Starting safe slow DM of {total} users with {role.name} role...\n"
+        f"⏱ Progress every {report_every} users, longer cooldowns to reduce rate limit risk.\n"
+        f"📝 Success log: `{log_file_success}`\n"
+        f"🛑 Failed log: `{log_file_failed}`"
+    )
+
+    for idx, member in enumerate(members, start=1):
+        try:
+            await member.send(message)
+            sent += 1
+            with open(log_file_success, "a", encoding="utf-8") as f:
+                f.write(f"{member.name}#{member.discriminator} | {member.id}\n")
+        except Exception as e:
+            failed += 1
+            print(f"❌ Failed to DM {member.name}: {e}")
+            with open(log_file_failed, "a", encoding="utf-8") as f:
+                f.write(f"{member.name}#{member.discriminator} | {member.id} | Error: {e}\n")
+
+        if idx % report_every == 0:
+            embed = discord.Embed(
+                title=f"📬 Slow DM Progress Update ({role.name})",
+                description=f"Progress: **{idx}/{total}** users",
+                color=role.color if role.color != discord.Color.default() else discord.Color.blurple()
+            )
+            embed.add_field(name="✅ Sent", value=str(sent))
+            embed.add_field(name="❌ Failed", value=str(failed))
+            await ctx.send(embed=embed)
+
+        if idx % extra_pause_every == 0:
+            await ctx.send(f"🕒 Extra cooldown: waiting {extra_pause} seconds after {idx} users...")
+            await asyncio.sleep(extra_pause)
+        elif idx % long_pause_every == 0:
+            await ctx.send(f"🕒 Long cooldown: waiting {long_pause} seconds after {idx} users...")
+            await asyncio.sleep(long_pause)
+        elif idx % medium_pause_every == 0:
+            await ctx.send(f"🕒 Medium cooldown: waiting {medium_pause} seconds after {idx} users...")
+            await asyncio.sleep(medium_pause)
+
+        await asyncio.sleep(short_delay)
+
+    final_embed = discord.Embed(
+        title=f"✅ Safe Slow DM Campaign Completed ({role.name})",
+        description=f"All **{total}** users with {role.name} role processed.",
+        color=role.color if role.color != discord.Color.default() else discord.Color.green()
+    )
+    final_embed.add_field(name="✅ Total Sent", value=str(sent), inline=True)
+    final_embed.add_field(name="❌ Total Failed", value=str(failed), inline=True)
+    final_embed.add_field(name="📄 Logs",
+                         value=f"✅ Success: `{log_file_success}`\n ❌ Failed: `{log_file_failed}`",
                          inline=False)
     await ctx.send(embed=final_embed)
 
