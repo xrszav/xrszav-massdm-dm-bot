@@ -1,40 +1,68 @@
-# 📬 Discord XrsZav MassDm / DM Bot 
-This is a Discord bot built using `discord.py` that allows server administrators to send direct messages (DMs) to individual users or all server members (excluding bots). It also supports retrying failed DMs and provides logging and status tracking. 
+# 📬 Discord XrsZav MassDm / DM Bot
+This is a Discord bot built with `discord.py` for server administrators who need to send direct messages (DMs) safely. It supports single-user DMs, bulk DMs, retrying failed campaigns, previewing messages, logging, status reports, and safer slow-mode delivery. So N1 Mass DM bot in the world.
 
 ## ⚙️ Features
-`!dm @user [message]`
-Send a DM to a specific user.
+- `!dm @user [message]`
+  - Send a DM to a specific user.
 
-`!dmall [message]`
-Mass DM all members in the server (except bots). <ins>Cooldowns included </ins>to reduce risk of rate-limits.
+- `!dmpreview [message]`
+  - Preview the DM by sending it to yourself before sending a campaign.
 
-`!dmretry <success_log_file>`
-Retry sending DMs to users who were not successfully DMd previously.
+- `!dmall [message]`
+  - Mass DM all server members (excluding bots) using the default or provided message.
+  - Built-in cooldowns and progress updates help reduce rate-limit risk.
 
-`!dmstatus`
-Show a report of how many DMs were successfully sent and failed, based on the most recent log files.
+- `!dmallsafe [message]`
+  - Slower, more cautious version of mass DM.
+  - Adds longer delays and extra cooldowns to help avoid rate-limits.
 
-## 🧠 Aliases
-______________________________________________________________
-| Command      | Aliases                                     |
-|--------------|---------------------------------------------|
-| `!dmall`     | `!massdm`, `!dmallusers`                    |
-| `!dmretry`   | `!dmallcontinue`, `!retrydm`, `!dmfailures` |
+- `!dmroleall @Role [message]`
+  - DM all members with a specific role.
 
-## 📁 Log Files
-When running mass DM campaigns, the bot will generate two log files:
+- `!dmroleallsafe @Role [message]`
+  - Slower, safer version of role-based DMs with extra cooldowns.
 
-✅ `dm_success_<timestamp>.txt` – list of users who received the message.
+- `!dmretry <success_log_file>`
+  - Retry failed DMs from a previous campaign by reading the success log file.
 
-❌ `dm_failed_<timestamp>.txt` – list of users who failed to receive the message.
+- `!dmstatus`
+  - Report the last campaign status from the latest success/failed log files.
 
-Retry logs are similarly named with `dm_retry_success_<timestamp>` and `dm_retry_failed_<timestamp>`.
+- `!dmstats [days]`
+  - Show DM statistics for the last X days (default: 7).
+
+- `!getlog [filename]`
+  - List available log files or download a specific one.
+
+- `!clearlogs [days]`
+  - Delete log files older than the specified number of days (default: 30).
+
+## 🧠 Command Aliases
+| Command | Aliases |
+|---|---|
+| `!dmall` | `!massdm`, `!dmallusers` |
+| `!dmallsafe` | `!massdmsafe`, `!slowdmall` |
+| `!dmroleall` | `!roledm`, `!dmrole` |
+| `!dmroleallsafe` | `!roledmsecure`, `!slowdmrole` |
+| `!dmretry` | `!dmallcontinue`, `!retrydm`, `!dmfailures` |
+| `!getlog` | `!downloadlog`, `!log` |
+| `!clearlogs` | `!purgelogs` |
+
+## 📁 Logs
+The bot writes log files to the bot folder for tracking campaigns.
+
+- ✅ `dm_success_<timestamp>.txt` — users who were successfully DM’d.
+- ❌ `dm_failed_<timestamp>.txt` — users who failed to receive a DM.
+- ✅ `dm_retry_success_<timestamp>.txt` — retry campaign success log.
+- ❌ `dm_retry_failed_<timestamp>.txt` — retry campaign failed log.
+- `dm_success_slow_<timestamp>.txt` / `dm_failed_slow_<timestamp>.txt` — safe slow campaign logs.
+- `dm_success_<role>_slow_<timestamp>.txt` / `dm_failed_<role>_slow_<timestamp>.txt` — role-based safe slow campaign logs.
 
 ## 🔐 Permissions
-Only users with the `Administrator permission` can run DM commands.
+Only users with the `Administrator` permission can run DM commands.
 
 ## 🛠 Configuration
-Edit the `config.json` file before running the bot:
+Edit `config.json` before running the bot:
 
 ```json
 {
@@ -43,33 +71,38 @@ Edit the `config.json` file before running the bot:
   "default_message": "This is a default DM message."
 }
 ```
+
 ## 🚀 Running the Bot
-Make sure you have `Python 3.8+` and `discord.py` installed.
+Make sure you have Python 3.8+ and `discord.py` installed.
 
 ```bash
 pip install -U discord.py
 python3 bot.py
 ```
 
-## 💡 HAVE AN IDEA?
-**Create an issue and suggest it to me!** *I would like to keep this bot updated and up to date*
-
 ## ⚠️ Warnings
-**Abuse of mass DMing can get your bot or server banned**. <ins>**Use responsibly.**<ins>
+Mass DMing can trigger Discord rate limits or spam detection.
+Use the safe commands (`!dmallsafe`, `!dmroleallsafe`) if you want extra delay and lower risk.
 
-**Cooldowns are in place** (5 min every 20 users), but *Discord* can **still rate-limit or flag spammy behavior**.
+**Use this bot responsibly.**
 
 ## 🆘 Support & Contributions
-Need help or have suggestions? You can reach out through these methods:
+Need help or have suggestions?
 
-- **Discord**: You can find me on Discord: `xrszav0`
-- **Telegram**: You can also contact me on Telegram, `@xrszav` [t.me/xrszav](https://t.me/xrszav).
-- **GitHub**: If you have **suggestions or improvements**, feel free to open an issue or submit a pull request.
+- **Discord**: `xrszav0`
+- **Telegram**: `@xrszav` [https://t.me/xrszav](https://t.me/xrszav)
+- **GitHub**: Open an issue or pull request for improvements.
+
+## 🌐 Websites
+- https://oblivity.xyz
+- https://xrszav.xyz 
+
 
 ## 📄 License
-This project is licensed under the **[MIT License](https://choosealicense.com/licenses/mit/)**. This project is provided as-is. You are responsible for how you use it.
+This project is licensed under the **[MIT License](https://choosealicense.com/licenses/mit/)**.
 
 ## 🔑 Keywords
-- Discord Bot, Mass DM, Direct Messages, Bulk Messaging, Bot Development, Python, Discord.py, Admin Tools
+Discord Bot, Mass DM, Direct Messages, Bulk Messaging, Bot Development, Python, Discord.py, Admin Tools
 
-## ONLY FOR EDUCATIONAL PURPOSES 
+## ONLY FOR EDUCATIONAL PURPOSES
+
